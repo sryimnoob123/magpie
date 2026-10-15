@@ -1,0 +1,5 @@
+name: magpie-provider
+kind: model-provider
+version: 1.0.0
+description: magpie local gateway — declares the capabilities (image input, context window, reasoning) magpie reports for each model, so images reach the model natively instead of being described to it by an auxiliary one
+author: magpie

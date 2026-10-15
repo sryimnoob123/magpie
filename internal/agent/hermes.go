@@ -43,15 +43,23 @@ func hermesIn(at place) *Agent {
 	path := filepath.Join(dir, "config.yaml")
 	hermesProvider := func(p string) any { return hermesKept(p, hermesProviderAt(at.gw())) }
 	// spread puts magpie's provider, as it is now, into every other
-	// profile's config beside the one magpie connects
+	// profile's config, and the provider plugin into the plugins folder of
+	// each home magpie is in beside the one it connects — a profile reads its
+	// own, never the root's
 	spread := func() error {
 		var errs []error
+		ms := magpieModels("hermes")
+		homes := []string{dir}
 		for _, p := range hermesOthers(at, dir) {
 			if edit.GetYAMLMap(p, "providers."+magpieID) != nil {
 				errs = append(errs, syncYAML(p, "providers."+magpieID, func() any { return hermesProvider(p) }))
 			} else {
 				errs = append(errs, edit.SetYAML(p, edit.KV{Path: "providers." + magpieID, Value: hermesProvider(p)}))
 			}
+			homes = append(homes, filepath.Dir(p))
+		}
+		for _, home := range homes {
+			errs = append(errs, hermesProviderWrite(home, ms))
 		}
 		return errors.Join(errs...)
 	}
@@ -104,11 +112,17 @@ func hermesIn(at place) *Agent {
 		// magpie's, goes back by the field
 		Unwire: func() error {
 			var errs []error
+			// read before the configs go: afterwards no provider entry is left
+			// to say which profiles magpie was in
+			pluginHomes := hermesProviderHomes(at, dir)
 			if joined() {
 				errs = append(errs, edit.DelYAML(path, "providers."+magpieID))
 			}
 			for _, p := range hermesOthers(at, dir) {
 				errs = append(errs, hermesUnwireProfile(p))
+			}
+			for _, home := range pluginHomes {
+				errs = append(errs, hermesProviderRemove(home))
 			}
 			return errors.Join(errs...)
 		},
