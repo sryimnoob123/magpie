@@ -8983,9 +8983,11 @@ function drawEditor(p, presetID) {
     if (p.cline) advIn.append(...upstreamField());
     ed.append(...pluginOptionsField(subOf(a.agent)));
     // a plugin's provider is reached inside magpie: its plugin:// URLs go
-    // nowhere to show or test
+    // nowhere to show or test. The addresses the plugin declared are shown
+    // instead, read-only (#2409)
     const urls = [p.chat, p.responses, p.anthropic].filter(Boolean);
     if (urls.length && !urls.some((u) => u.startsWith("plugin://"))) ed.append(...field(t("Endpoints"), renderEndpoints(p, p)));
+    else if (p.declared) ed.append(...field(t("Endpoints"), renderDeclared(p.declared), t("Read-only, as the plugin declared them: magpie sends each request through the plugin, not to these addresses itself.")));
     ed.append(adv);
     const bar = el("div", "bar");
     // removing only hides it from magpie; the agent stays signed in
@@ -10262,6 +10264,23 @@ function renderEndpoints(p, src) {
       test.classList.remove("busy");
     };
     eps.append(test);
+  }
+  return eps;
+}
+
+// The addresses a plugin's provider declared for its vendor's APIs
+// (p.declared, #2409), shown read-only: a request reaches them through the
+// plugin either way, so there is nothing here to edit, and no Test that
+// would tell more than `provider test` already does.
+function renderDeclared(urls) {
+  const eps = el("div", "eps declared");
+  for (const [proto, label, hint] of PROTOS) {
+    if (!urls[proto]) continue;
+    const e = el("div", "ep");
+    const pl = el("span", "pl", label);
+    pl.title = t(hint);
+    e.append(pl, el("code", "", urls[proto]));
+    eps.append(e);
   }
   return eps;
 }

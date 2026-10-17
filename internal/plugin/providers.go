@@ -113,6 +113,13 @@ type Provider struct {
 	NPM     string   `json:"npm"`
 	API     string   `json:"api"`
 	Methods []Method `json:"methods"`
+	// Endpoints are the addresses the plugin says its vendor answers on,
+	// by API: "chat", "responses", "anthropic", "gemini" (the config
+	// hook's provider[ID].endpoints, magpie's own field). A plugin that
+	// declares it answers on more than one says each; one that leaves an
+	// API out, or names none, answers on API. magpie shows them, never
+	// routes by them: a plugin's requests go through its fetch (#2409).
+	Endpoints map[string]string `json:"endpoints,omitempty"`
 	// Icon is the picture the plugin gives the provider, as it said it:
 	// an https URL or a data:image URI (internal/provider keeps it)
 	Icon string `json:"icon,omitempty"`
@@ -153,6 +160,16 @@ type Provider struct {
 	// magpie.maxConcurrency); 0 for none said. The user's setting on the
 	// provider goes over it.
 	MaxConcurrency int `json:"maxConcurrency,omitempty"`
+}
+
+// Endpoint is where p's vendor answers api ("chat", "responses",
+// "anthropic", "gemini") as the plugin declares it: the address it gave
+// for that API, else its API. "" when it declared neither.
+func (p Provider) Endpoint(api string) string {
+	if u := strings.TrimSpace(p.Endpoints[api]); u != "" {
+		return u
+	}
+	return strings.TrimSpace(p.API)
 }
 
 // Option is a switch a plugin declares for its provider (auth.options,

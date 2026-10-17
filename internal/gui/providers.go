@@ -88,6 +88,10 @@ type providerJSON struct {
 	ExtraBody provider.ExtraBody `json:"extraBody,omitempty"`
 	// the API the user gave a custom provider's Base URL as (BaseAPI)
 	BaseAPI string `json:"baseAPI,omitempty"`
+	// Declared are the addresses a plugin's provider declared for its
+	// vendor's APIs (provider.Endpoints, #2409), shown read-only in the
+	// editor under Endpoints, as they reach them through the plugin
+	Declared provider.Endpoints `json:"declared,omitzero"`
 	// the vendor searches the web by itself (provider.Searches)
 	Searches bool `json:"searches"`
 	// on the Cline API: its DeepSeek models are served by DeepSeek's own
@@ -578,7 +582,7 @@ func providerInfo(p provider.Provider, agents []agentUse) providerJSON {
 func providerInfoWith(p provider.Provider, agents []agentUse, desktop map[string]string) providerJSON {
 	out := providerJSON{
 		ID: p.ID, Name: p.Name, Icon: p.Icon, Preset: p.Preset, Host: p.Host(),
-		Chat: p.Chat, Responses: p.Responses, Anthropic: p.Anthropic, Gemini: p.Gemini, Decide: p.Decide, BaseAPI: p.BaseAPI, ModelTest: p.ModelTest(), TestsAs: p.TestClients(), DecideTest: p.AsksDecideModels(), MarksKinds: p.MarksKinds(),
+		Chat: p.Chat, Responses: p.Responses, Anthropic: p.Anthropic, Gemini: p.Gemini, Decide: p.Decide, BaseAPI: p.BaseAPI, Declared: p.Declared, ModelTest: p.ModelTest(), TestsAs: p.TestClients(), DecideTest: p.AsksDecideModels(), MarksKinds: p.MarksKinds(),
 		Catalog: p.Catalog, Website: p.Website, KeysURL: p.KeysURL,
 		Proxy: p.Proxy, AccountProxies: p.AccountProxies, AccountModels: p.AccountModels, AccountCaps: p.AccountCaps, AccountWindowCaps: p.AccountWindowCaps, AccountNames: p.AccountNames, Headers: p.Headers, ExtraBody: p.ExtraBody, Searches: p.Searches, Cline: p.ClinePinnable(), PinUpstream: p.PinUpstream, Unredacted: p.Unredacted, InsecureTLS: p.InsecureTLS, TakesInsecureTLS: p.TakesInsecureTLS(), NativeCompaction: p.NativeCompaction, CarriesCompaction: p.CarriesCompaction(), PassUserAgent: p.PassUserAgent, OwnClient: p.OwnClient(), AuthHeader: p.AuthHeader, BothAuth: p.BothAuth(), BalanceURL: p.BalanceURL, BalancePath: p.BalancePath, BalanceMethod: p.BalanceMethod, ModelsURL: p.ModelsURL,
 		Ready: p.Ready(), Chosen: p.Picks(), Models: []modelJSON{}, Agents: []providerAgent{},

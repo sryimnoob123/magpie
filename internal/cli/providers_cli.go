@@ -775,15 +775,26 @@ func showProvider(p provider.Provider) error {
 			fmt.Printf("  %s %s\n", muted.Render(pad(k, 10)), v)
 		}
 	}
+	// a plugin's provider has its own addresses to show, beside the
+	// plugin://<id> a request is routed by: the ones the plugin declared
+	// for each API, which say they are reached through the plugin (#2409)
+	declared := p.Declared
+	wire := func(k, own, said string) {
+		if said != "" {
+			fmt.Printf("  %s %s\n", muted.Render(pad(k, 10)), said+muted.Render("  through the plugin"))
+			return
+		}
+		kv(k, own)
+	}
 	name := bold.Render(p.Name) + muted.Render("  "+p.ID)
 	if p.Preset == "" && p.Account == nil {
 		name += faint.Render("  custom")
 	}
 	fmt.Println(" ", name)
-	kv("chat", p.Chat)
-	kv("responses", p.Responses)
-	kv("anthropic", p.Anthropic)
-	kv("gemini", p.Gemini)
+	wire("chat", p.Chat, declared.Chat)
+	wire("responses", p.Responses, declared.Responses)
+	wire("anthropic", p.Anthropic, declared.Anthropic)
+	wire("gemini", p.Gemini, declared.Gemini)
 	if p.Searches {
 		kv("search", "by itself"+muted.Render("  a client's web search goes to it as sent"))
 	}

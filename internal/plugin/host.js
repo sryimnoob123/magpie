@@ -1627,6 +1627,10 @@ async function info(id, key, strict) {
     options: { ...(cfg?.options ?? {}) },
     npm: cfg?.npm ?? md?.npm,
     api: cfg?.api ?? md?.api,
+    // magpie's own field: where the vendor answers on each API, when it
+    // answers on more than one (chat, responses, anthropic, gemini); the
+    // provider's api is where it answers on any it doesn't name (#2409)
+    endpoints: endpointsOf(cfg?.endpoints),
     // magpie's own field: the plugin serves a decision API (System One)
     // for this provider, asked at its base /systemone through its fetch
     decide: cfg?.decide === true,
@@ -1818,6 +1822,20 @@ function tiersOf(v) {
   return out
 }
 
+// endpointsOf reads the addresses a plugin says its provider's vendor
+// answers on (the config hook's provider[ID].endpoints, magpie's own field):
+// one per API it names, as an address; anything else is dropped, and none
+// said is undefined, so magpie shows the provider's API alone
+function endpointsOf(v) {
+  if (!v || typeof v !== "object") return undefined
+  const out = {}
+  for (const api of ["chat", "responses", "anthropic", "gemini"]) {
+    const u = typeof v[api] === "string" ? v[api].trim() : ""
+    if (u) out[api] = u
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 // providers lists each provider and its accounts' models, each asked
 // through its proxy (proxies[provider][key], "" the provider's own), as a
 // built-in fetches each account's list through the account's.
@@ -1843,6 +1861,7 @@ async function providers({ proxies } = {}) {
       name: p.name,
       npm: p.npm ?? "",
       api: p.api ?? "",
+      endpoints: p.endpoints ?? undefined,
       methods: methods(a.auth),
       icon: iconOf(a),
       usage: typeof a.auth.usage === "function",

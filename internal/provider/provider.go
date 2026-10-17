@@ -44,6 +44,17 @@ const (
 // Protocols in the order magpie prefers them when it has to translate.
 var Protocols = []Protocol{Chat, Responses, Anthropic}
 
+// Endpoints are the addresses a plugin's provider declares for the APIs it
+// serves, one per API (#2409): where its vendor answers, as the plugin's
+// config hook said it (plugin.Provider.API and .Endpoints). magpie shows
+// them and routes nothing by them.
+type Endpoints struct {
+	Chat      string `json:"chat,omitempty"`
+	Responses string `json:"responses,omitempty"`
+	Anthropic string `json:"anthropic,omitempty"`
+	Gemini    string `json:"gemini,omitempty"`
+}
+
 // Provider is one configured vendor.
 type Provider struct {
 	ID   string `json:"id"`
@@ -97,6 +108,15 @@ type Provider struct {
 	// first API with a URL (01huadalang: Responses picked and saved came
 	// back as OpenAI compatible). Requests go by which URLs are set.
 	BaseAPI string `json:"baseAPI,omitempty"`
+
+	// Declared is where a plugin's provider says its requests end up, as
+	// the plugin declared them (plugin.Provider.API and .Endpoints): one
+	// address per API it serves (#2409). They are shown, never routed by —
+	// Chat, Responses and Anthropic keep plugin://<id>, which pluginFetch
+	// trims off to ask the plugin with the path it was sent. Empty for a
+	// provider no plugin serves, or one whose plugin declared no address
+	// at all, and then absent from the editor's copy of it.
+	Declared Endpoints `json:"declared,omitzero"`
 
 	// Fallback is where a request goes when this provider can't take it —
 	// out of quota, rate limited, overloaded or down — before any of the

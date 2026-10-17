@@ -27,6 +27,31 @@ import (
 // gateway: its transport takes them to where the plugin says instead.
 const pluginBase = "plugin://"
 
+// pluginDeclared are the addresses a plugin declared for the APIs its
+// provider is reached on (plugin.Provider.Endpoints, else its API), one per
+// API it named. magpie shows them, in the editor's Endpoints and by
+// `magpie provider <id>`, and routes nothing by them: a plugin's request
+// goes through its fetch (#2409). Empty when it declared no address at all,
+// so a provider whose plugin says nothing is shown as it was.
+func pluginDeclared(pp plugin.Provider, p Provider) Endpoints {
+	var out Endpoints
+	if p.Chat != "" {
+		out.Chat = pp.Endpoint("chat")
+	}
+	if p.Responses != "" {
+		out.Responses = pp.Endpoint("responses")
+	}
+	if p.Anthropic != "" {
+		out.Anthropic = pp.Endpoint("anthropic")
+	}
+	// a Google model is spoken to as Code Assist's inner request, which is
+	// Gemini's API at the plugin's vendor
+	if p.Account != nil && p.Account.codeAssist != "" {
+		out.Gemini = pp.Endpoint("gemini")
+	}
+	return out
+}
+
 // ConversationHeader carries the conversation a request belongs to, to a
 // plugin's chat.headers hook as its session; it goes no further.
 const ConversationHeader = "X-Magpie-Conversation"
@@ -398,6 +423,8 @@ func pluginProvider(pp plugin.Provider, l pluginLogin) Provider {
 		// couldn't be reached (#1514)
 		p.Decide = pluginBase + pp.ID + "/v1"
 	}
+	// where the plugin says the requests end up: shown, never routed by
+	p.Declared = pluginDeclared(pp, p)
 	// a plugin in front of Anthropic's or OpenAI's API says its upstream
 	// searches, as a relay is said to (#2027): its client's web_search goes
 	// to it as sent, on the APIs it has an address for (searchesItself)
