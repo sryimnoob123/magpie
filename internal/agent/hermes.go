@@ -349,7 +349,22 @@ func hermesProfiles(at place) []string {
 	if at.cold {
 		return nil
 	}
-	root := hermesRoot(at)
+	return hermesProfileConfigs(hermesRoot(at))
+}
+
+// HermesProfiles are the config.yaml Hermes reads at dir, one of its homes
+// ($HERMES_HOME): the home's own, and each profile's beside it, by
+// hermesProfiles' rule. The library gives each of them what it gives the
+// home, as a bot's profile reads neither its servers nor its skills
+// (targets.go, #2540).
+func HermesProfiles(dir string) []string { return hermesProfileConfigs(hermesRootOf(dir)) }
+
+// hermesProfileConfigs is the config.yaml of each of Hermes's profiles at
+// root: the root's own, and <root>/profiles/<name>'s for each name Hermes
+// allows that holds a file only a profile has and isn't deleted (a
+// tombstone at profiles/.deleted/<name>). A profile with no config.yaml
+// yet is left out: magpie doesn't make one.
+func hermesProfileConfigs(root string) []string {
 	paths := []string{filepath.Join(root, "config.yaml")}
 	ps := filepath.Join(root, "profiles")
 	es, _ := os.ReadDir(ps)
@@ -373,13 +388,20 @@ func hermesRoot(at place) string {
 	root := at.hermesDefault()
 	if env := at.getenv("HERMES_HOME"); env != "" {
 		if rel, err := filepath.Rel(root, env); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			root = env
-			if filepath.Base(filepath.Dir(env)) == "profiles" {
-				root = filepath.Dir(filepath.Dir(env))
-			}
+			return hermesRootOf(env)
 		}
 	}
 	return root
+}
+
+// hermesRootOf is hermesRoot for a home named by its path rather than read
+// off a place: the home itself, or, as <root>/profiles/<name>, the root the
+// profile's own folder is under (get_default_hermes_root).
+func hermesRootOf(dir string) string {
+	if filepath.Base(filepath.Dir(dir)) == "profiles" {
+		return filepath.Dir(filepath.Dir(dir))
+	}
+	return dir
 }
 
 // hermesLive is whether name is a profile of root Hermes runs: a name it
