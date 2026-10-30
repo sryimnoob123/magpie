@@ -1121,7 +1121,7 @@ func (f *mcpFile) read() (map[string]*Server, error) {
 
 // also is the file of each of Also, for formats written file by file.
 func (f *mcpFile) also() []*mcpFile {
-	if f.Format != fmtPi && f.Format != fmtDesktop {
+	if f.Format != fmtPi && f.Format != fmtDesktop && f.Format != fmtHermes {
 		return nil
 	}
 	var out []*mcpFile
@@ -1298,8 +1298,14 @@ func (f *mcpFile) putEntry(s *Server, o ordered) error {
 		}
 		return edit.SetYAML(f.Path, edit.KV{Path: "extensions." + s.Name, Value: m})
 	case fmtHermes:
-		// in its order, beside the user's other settings and comments
-		return edit.SetYAML(f.Path, edit.KV{Path: f.key() + "." + s.Name, Value: o})
+		// in its order, beside the user's other settings and comments; each
+		// config.yaml of the agent's, a profile's own as well (#2540)
+		for _, p := range f.files() {
+			if err := edit.SetYAML(p, edit.KV{Path: f.key() + "." + s.Name, Value: o}); err != nil {
+				return err
+			}
+		}
+		return nil
 	case fmtDsh:
 		for _, p := range f.files() {
 			if err := dshPut(p, s.Name, o); err != nil {
@@ -1350,7 +1356,13 @@ func (f *mcpFile) del(name string) error {
 	case fmtGoose:
 		return edit.DelYAML(f.Path, "extensions."+name)
 	case fmtHermes:
-		return edit.DelYAML(f.Path, f.key()+"."+name)
+		// each config.yaml of the agent's, a profile's own too (#2540)
+		for _, p := range f.files() {
+			if err := edit.DelYAML(p, f.key()+"."+name); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	return edit.Atomically(func() error {
 		for _, a := range f.also() {

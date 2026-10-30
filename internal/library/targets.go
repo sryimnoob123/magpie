@@ -31,6 +31,10 @@ type Target struct {
 	// SkillsAlso are agents whose skills this one reads as well, as
 	// OpenCode reads Claude Code's.
 	SkillsAlso []string
+	// SkillsAlsoDirs are the agent's further skills folders, each given
+	// what Skills is: a Hermes bot reads its profile's skills, not the
+	// home's.
+	SkillsAlsoDirs []string
 	// MCPVia is the extension the agent reads its MCP servers through, for
 	// one that has none of its own.
 	MCPVia string
@@ -299,9 +303,19 @@ func targetOf(a *agent.Agent) *Target {
 	case "hermes":
 		// Hermes Agent reads mcp_servers from $HERMES_HOME/config.yaml, the
 		// file magpie sets its model in too (tools/mcp_tool.py), and skills
-		// from $HERMES_HOME/skills
+		// from $HERMES_HOME/skills. Each of its bots is a profile with a
+		// config.yaml and skills of its own, which reads neither of the
+		// home's (agent.HermesProfiles, as magpie wires its provider into
+		// each): each is given both (#2540)
 		t.MCP = &mcpFile{Path: a.Path, Format: fmtHermes}
 		t.Skills = filepath.Join(a.Dir, "skills")
+		for _, p := range agent.HermesProfiles(a.Dir) {
+			if filepath.Clean(p) == filepath.Clean(a.Path) {
+				continue
+			}
+			t.MCP.Also = append(t.MCP.Also, p)
+			t.SkillsAlsoDirs = append(t.SkillsAlsoDirs, filepath.Join(filepath.Dir(p), "skills"))
+		}
 	case "minimax-code":
 		// MiniMax Code loads the skills in its data folder ($MINIMAX_DATA_DIR,
 		// else ~/.minimax); it has no user-wide MCP file, only plugins' own
@@ -877,7 +891,7 @@ func (t *Target) open() bool {
 		t.MCP, t.MCPVia = nil, ""
 	}
 	if t.Skills != "" && agent.Taken(t.Skills) {
-		t.Skills, t.SkillsAlso = "", nil
+		t.Skills, t.SkillsAlso, t.SkillsAlsoDirs = "", nil, nil
 	}
 	return t.Instructions != "" || t.MCP != nil || t.Skills != ""
 }

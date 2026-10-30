@@ -538,18 +538,51 @@ func within(p, dir string) bool {
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
-func (l *Library) syncSkills(t *Target, res *Result, all []*Target) {
+// skillDirs are every folder the agent reads skills from: its own, and the
+// others it is given the same (a Hermes profile's, which reads no other).
+func (t *Target) skillDirs() []string {
 	if t.Skills == "" {
+		return nil
+	}
+	return append([]string{t.Skills}, t.SkillsAlsoDirs...)
+}
+
+func (l *Library) syncSkills(t *Target, res *Result, all []*Target) {
+	dirs := t.skillDirs()
+	if len(dirs) == 0 {
 		return
 	}
+	a := l.applied(t.Agent.ID)
+	// every folder is given what the others are: what the agent has, as the
+	// library records it, is all of them together
+	had := slices.Clone(a.Skills)
+	var mine []string
+	for _, dir := range dirs {
+		for _, name := range l.syncSkillsIn(t, dir, res, all, had) {
+			if !slices.Contains(mine, name) {
+				mine = append(mine, name)
+			}
+		}
+	}
+	a.Skills = mine
+}
+
+// syncSkillsIn is syncSkills in one of the agent's folders, each given the
+// same skills.
+func (l *Library) syncSkillsIn(t *Target, dir string, res *Result, all []*Target, had []string) []string {
 	id := t.Agent.ID
-	a := l.applied(id)
 	// another agent may read the very same folder (one linked to the other):
 	// what that agent is to have stays
 	sharers := []string{}
 	for _, o := range all {
-		if o != t && o.Skills != "" && realDir(o.Skills) == realDir(t.Skills) {
-			sharers = append(sharers, o.Agent.ID)
+		if o == t {
+			continue
+		}
+		for _, od := range o.skillDirs() {
+			if realDir(od) == realDir(dir) {
+				sharers = append(sharers, o.Agent.ID)
+				break
+			}
 		}
 	}
 	cp := l.copies(t, sharers)
@@ -563,9 +596,9 @@ func (l *Library) syncSkills(t *Target, res *Result, all []*Target) {
 	// a skill magpie put there for another (Kimi Code) already: a link in
 	// its own too would be the skill twice
 	shared := realDir(sharedSkillsDir())
-	isShared := realDir(t.Skills) == shared
+	isShared := realDir(dir) == shared
 	inShared := func(s *Skill) bool {
-		if s == nil || !slices.Contains(readsShared, id) || realDir(t.Skills) == shared {
+		if s == nil || !slices.Contains(readsShared, id) || isShared {
 			return false
 		}
 		// the library's skill is kept in the shared folder itself (brought
@@ -579,9 +612,9 @@ func (l *Library) syncSkills(t *Target, res *Result, all []*Target) {
 		}) && (ours(p, s.Name) || realDir(p) == realDir(skillDir(s.Name)))
 	}
 	var mine []string
-	for _, name := range a.Skills {
+	for _, name := range had {
 		s := l.skill(name)
-		p := filepath.Join(t.Skills, name)
+		p := filepath.Join(dir, name)
 		if l.blockedSkills[realDir(p)] {
 			mine = append(mine, name)
 			continue
@@ -604,12 +637,12 @@ func (l *Library) syncSkills(t *Target, res *Result, all []*Target) {
 		// an agent gone from here is given nothing: what it has still
 		// stays its, until unticked
 		if t.Gone {
-			if slices.Contains(a.Skills, s.Name) && !slices.Contains(mine, s.Name) {
+			if slices.Contains(had, s.Name) && !slices.Contains(mine, s.Name) {
 				mine = append(mine, s.Name)
 			}
 			continue
 		}
-		p := filepath.Join(t.Skills, s.Name)
+		p := filepath.Join(dir, s.Name)
 		if l.blockedSkills[realDir(p)] {
 			if !slices.Contains(mine, s.Name) {
 				mine = append(mine, s.Name)
@@ -703,7 +736,7 @@ func (l *Library) syncSkills(t *Target, res *Result, all []*Target) {
 		mine = append(mine, s.Name)
 		res.changed(id)
 	}
-	a.Skills = mine
+	return mine
 }
 
 // ---- finding skills to install --------------------------------------------
