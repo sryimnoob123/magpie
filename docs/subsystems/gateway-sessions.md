@@ -539,6 +539,34 @@ gateway's own record of LiveAgent's calls carries no session, and no
 resume command or delete. Tests: `TestLiveAgentSessions` (the issue's
 literal `session_meta`), `TestLiveAgentTranscript`, `TestLiveAgentRoot`.
 
+DeepSeek Harness's sessions (`dsh`,
+[`dsh.go`](../../internal/sessions/dsh.go)) are
+`$DSH_HOME/sessions/<project>/<id>/session.v<N>.jsonl`, the newest format's
+file, packed as zstd frames appended a batch at a time
+(`session.jsonl.zstd`) unless compression is off; a session forked from
+another starts with that one's events. Its conversation is read by
+[`transcript_dsh.go`](../../internal/sessions/transcript_dsh.go)
+(`dshTranscript`): a `user/message` whose source's kind is `user` is what
+was typed, and one of any other kind — an instruction file, the runtime
+context, a subagent's report, a skill typed as `/<name>` — is shown folded
+as context, so distillation reads the prompts alone; an
+`assistant/message` is its words, its reasoning and the calls of tools,
+named by the model its own line says; a `tool/result` is what a tool
+answered; a `compaction/summary` is the earlier turns folded. The
+`tool/call` event is passed over, since the assistant's message already
+names the call. An `agent/inbox/spliced` line carries what dsh puts into a
+running turn — a prompt typed while the agent was busy, the runtime
+context — and a message is read once, by its id, whichever of the two
+lines carries it first; a splice dsh canceled is never read. That is what
+keeps a prompt only the splice carries from being lost while the two
+lines saying the same thing are not said twice. A session seeded from
+another shows the events it inherited, as a fork's do. A version 3 file's
+replies are not read: that format's `assistant/message` carries no words,
+and only its `assistant/delta` chunks do. Tests:
+`TestTranscriptDsh`, `TestTranscriptDshPacked` (one session in two zstd
+frames), `TestTranscriptDshFile` (testdata/dsh's version 3 file, whose
+message's content is one string).
+
 ## Local Gateway Conversation Recording
 
 The Sessions page offers an explicit, default-off recording switch. Confirmation
