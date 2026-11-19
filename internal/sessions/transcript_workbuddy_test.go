@@ -33,7 +33,6 @@ func listedAgents(t *testing.T) []string {
 // without one being filed.
 var noTranscriptYet = map[string]string{
 	"zcode":  "database rows",
-	"dsh":    "session.v3.jsonl not read as a transcript",
 	"cline":  "messages.json not read as a transcript",
 	"grok":   "updates.jsonl not read as a transcript",
 	"droid":  "not read as a transcript",
